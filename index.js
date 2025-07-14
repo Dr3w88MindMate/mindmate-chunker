@@ -3,16 +3,24 @@ const bodyParser = require('body-parser');
 const app = express();
 const MAX_CHUNK_SIZE = 1600;
 
-// Use bodyParser.text() to accept raw text payloads
+// Accept raw plain text payloads
 app.use(bodyParser.text({ type: 'text/plain' }));
 
+// Split only at newline followed by number + dot + space, e.g. "\n1. "
 function splitByBullets(text) {
-  return text.split(/(?=\n?\d{1,2}\.\s|\n?\*\w+|\n?-\s)/g);
+  return text.split(/\n(?=\d{1,2}\.\s)/g);
 }
 
 function fixMarkdownBalance(chunk) {
-  const starCount = (chunk.match(/\*/g) || []).length;
-  return starCount % 2 === 0 ? chunk : chunk + '*';
+  const singleStarCount = (chunk.match(/\*(?!\*)/g) || []).length;
+  const doubleStarCount = (chunk.match(/\*\*/g) || []).length;
+
+  let fixedChunk = chunk;
+
+  if (singleStarCount % 2 !== 0) fixedChunk += '*';
+  if (doubleStarCount % 2 !== 0) fixedChunk += '*';
+
+  return fixedChunk;
 }
 
 function chunkText(text, maxLength = MAX_CHUNK_SIZE) {
@@ -38,7 +46,6 @@ function chunkText(text, maxLength = MAX_CHUNK_SIZE) {
   return chunks;
 }
 
-// Accept plain text
 app.post('/chunk', (req, res) => {
   const text = req.body;
 
