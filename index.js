@@ -3,10 +3,10 @@ const bodyParser = require('body-parser');
 const app = express();
 const MAX_CHUNK_SIZE = 1600;
 
-app.use(bodyParser.json());
+// Use bodyParser.text() to accept raw text payloads
+app.use(bodyParser.text({ type: 'text/plain' }));
 
 function splitByBullets(text) {
-  // Splits at lines starting with numbered bullets or markdown-style headers
   return text.split(/(?=\n?\d{1,2}\.\s|\n?\*\w+|\n?-\s)/g);
 }
 
@@ -38,11 +38,12 @@ function chunkText(text, maxLength = MAX_CHUNK_SIZE) {
   return chunks;
 }
 
+// Accept plain text
 app.post('/chunk', (req, res) => {
-  const { text } = req.body;
+  const text = req.body;
 
   if (!text || typeof text !== 'string') {
-    return res.status(400).json({ error: 'Missing or invalid "text" field in request body.' });
+    return res.status(400).json({ error: 'Missing or invalid text in request body.' });
   }
 
   const chunks = chunkText(text);
