@@ -1,42 +1,40 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const splitter = require('sentence-splitter');
 
 const app = express();
 
-// JSON parser middleware for /chunk
+// Middleware for JSON bodies at /chunk
 app.use(bodyParser.json());
 
-// Plain text parser middleware for /chunk-raw
+// Middleware for raw plain text at /chunk-raw
 app.use('/chunk-raw', bodyParser.text({ type: 'text/plain' }));
 
 const MAX_CHARS = 1600;
 
+// Sentence-aware, character-constrained chunking
 function chunkSentences(text) {
-  const sentences = splitter.split(text)
-    .filter(node => node.type === 'Sentence')
-    .map(node => node.raw.trim());
+  const segmenter = new Intl.Segmenter('en', { granularity: 'sentence' });
+  const sentences = [...segmenter.segment(text)].map(s => s.segment.trim());
 
   const chunks = [];
   let currentChunk = '';
 
   for (const sentence of sentences) {
-    if ((currentChunk + ' ' + sentence).trim().length > MAX_CHARS) {
-      chunks.push(currentChunk.trim());
+    const withSentence = currentChunk ? `${currentChunk} ${sentence}` : sentence;
+    if (withSentence.length > MAX_CHARS) {
+      if (currentChunk) chunks.push(currentChunk);
       currentChunk = sentence;
     } else {
-      currentChunk += ' ' + sentence;
+      currentChunk = withSentence;
     }
   }
 
-  if (currentChunk) {
-    chunks.push(currentChunk.trim());
-  }
+  if (currentChunk) chunks.push(currentChunk);
 
   return chunks;
 }
 
-// Existing JSON endpoint
+// JSON endpoint
 app.post('/chunk', (req, res) => {
   const { text } = req.body;
 
@@ -48,7 +46,7 @@ app.post('/chunk', (req, res) => {
   res.json({ chunks });
 });
 
-// New raw text endpoint
+// Raw text endpoint
 app.post('/chunk-raw', (req, res) => {
   const text = req.body;
 
@@ -60,7 +58,8 @@ app.post('/chunk-raw', (req, res) => {
   res.json({ chunks });
 });
 
-const PORT = 3000;
+// Server
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Chunker service running at http://localhost:${PORT}`);
 });
