@@ -3,10 +3,21 @@ const bodyParser = require('body-parser');
 const app = express();
 const MAX_CHUNK_SIZE = 1600;
 
-// Accept raw plain text payloads
+// ✅ Accept raw plain text payloads
 app.use(bodyParser.text({ type: 'text/plain' }));
 
-// Split only at newline followed by number + dot + space, e.g. "\n1. "
+// ✅ Middleware for API key authentication
+const API_KEY = process.env.API_KEY;
+
+app.use((req, res, next) => {
+  const key = req.headers['x-api-key'];
+  if (!API_KEY || key !== API_KEY) {
+    return res.status(401).json({ error: 'Unauthorized: Invalid or missing API key.' });
+  }
+  next();
+});
+
+// 🧠 Split text at newline followed by number + dot + space, e.g. "\n1. "
 function splitByBullets(text) {
   return text.split(/\n(?=\d{1,2}\.\s)/g);
 }
@@ -46,6 +57,7 @@ function chunkText(text, maxLength = MAX_CHUNK_SIZE) {
   return chunks;
 }
 
+// 📤 POST endpoint with secure access
 app.post('/chunk', (req, res) => {
   const text = req.body;
 
@@ -57,6 +69,7 @@ app.post('/chunk', (req, res) => {
   res.json({ chunks });
 });
 
+// 🚀 Start server
 app.listen(3000, () => {
   console.log('✅ Chunker running on http://localhost:3000');
 });
